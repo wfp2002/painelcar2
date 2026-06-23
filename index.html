@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+
+<style>
+
+html, body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    font-family:Arial;
+    background:black;
+}
+
+/* MAPA */
+#map{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:0;
+}
+
+/* OVERLAY */
+.overlay{
+    position:absolute;
+    inset:0;
+    z-index:2;
+    pointer-events:none;
+}
+
+/* SPEEDO */
+.speedo{
+    position:absolute;
+    left:15%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:420px;
+    height:420px;
+}
+
+svg{
+    width:100%;
+    height:100%;
+}
+
+/* BASE */
+.base{
+    fill:rgba(25,25,25,0.6);
+    stroke:#1f2a37;
+    stroke-width:20;
+}
+
+/* ARC REAL */
+.arc{
+    fill:none;
+    stroke:#00ff99;
+    stroke-width:18;
+    stroke-linecap:round;
+    filter: drop-shadow(0 0 8px rgba(0,255,150,0.8));
+}
+
+/* NEEDLE */
+.needle{
+    stroke:#ff2d2d;
+    stroke-width:4;
+    stroke-linecap:round;
+    transition:0.15s linear;
+}
+
+/* TEXT */
+.center{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    text-align:center;
+}
+
+.speed{
+    font-size:90px;
+    color:white;
+}
+
+.unit{
+    color:#aaa;
+}
+
+/* INFO */
+.info{
+    position:absolute;
+    bottom:20px;
+    width:100%;
+    display:flex;
+    justify-content:center;
+    gap:60px;
+    color:#9ecbff;
+    font-size:14px;
+    
+}
+
+.top{
+    position:absolute;
+    top:15px;
+    width:100%;
+    display:flex;
+    justify-content:space-around;
+    color:#ddd;
+    font-size:14px;
+    background-color: #1f2a37;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<div class="overlay">
+
+    <div class="top">
+        <div id="time">--:--</div>
+        <div id="alt">ALT 0 m</div>
+        <div id="avg">AVG 0 km/h</div>
+    </div>
+
+    <div class="speedo">
+
+        <svg viewBox="0 0 300 300">
+
+            <!-- BASE -->
+            <circle class="base" cx="150" cy="150" r="120"/>
+
+            <!-- ARC REAL -->
+            <path id="arc" class="arc"></path>
+
+            <!-- NEEDLE -->
+            <g id="needleGroup">
+                <line x1="150" y1="150" x2="150" y2="40"
+                      class="needle"/>
+            </g>
+
+            <circle cx="150" cy="150" r="6" fill="#ff2d2d"/>
+
+        </svg>
+
+        <div class="center">
+            <div class="speed" id="speed">0</div>
+            <div class="unit">km/h</div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+let map = L.map('map').setView([-23.5505,-46.6333], 18);
+
+const carIcon = L.icon({
+  iconUrl: 'car.png',
+  iconSize: [48,48],
+  iconAnchor: [24,24]
+});
+
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:''
+}).addTo(map);
+
+setTimeout(()=> map.invalidateSize(), 300);
+
+/* VARS */
+const MAX = 220;
+let smooth = 0;
+
+let marker = null;
+let lastLat = null;
+let lastLon = null;
+
+/* ARC */
+function describeArc(cx, cy, r, startAngle, endAngle){
+
+    const toRad = a => (a-90) * Math.PI / 180;
+
+    let start = {
+        x: cx + r * Math.cos(toRad(startAngle)),
+        y: cy + r * Math.sin(toRad(startAngle))
+    };
+
+    let end = {
+        x: cx + r * Math.cos(toRad(endAngle)),
+        y: cy + r * Math.sin(toRad(endAngle))
+    };
+
+    let largeArc = endAngle - startAngle <= 180 ? "0" : "1";
+
+    return `M ${start.x} ${start.y}
+            A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+}
+
+/* SPEED RENDER */
+function setSpeed(v){
+
+    smooth += (v - smooth) * 0.15;
+
+    document.getElementById("speed")
+    .innerText = Math.round(smooth);
+
+    let pct = Math.max(0, Math.min(1, smooth / MAX));
+
+    const start = -135;
+    const end = 135;
+
+    let angle = start + pct * (end - start);
+
+    /* NEEDLE */
+    document.getElementById("needleGroup")
+    .setAttribute("transform",
+        `rotate(${angle} 150 150)`
+    );
+
+    /* ARC */
+    document.getElementById("arc")
+    .setAttribute("d",
+        describeArc(150,150,120,start,angle)
+    );
+}
+
+/* DISTANCIA */
+function getDistance(lat1, lon1, lat2, lon2){
+
+    const R = 6371e3;
+    const toRad = x => x * Math.PI / 180;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
+}
+
+/* GPS REAL */
+if ("geolocation" in navigator) {
+
+    navigator.geolocation.watchPosition(pos => {
+
+        let lat = pos.coords.latitude;
+        let lon = pos.coords.longitude;
+
+        let heading = pos.coords.heading || 0;
+
+        if(map.setBearing){
+            map.setBearing(heading);
+        }
+
+
+        /* velocidade real (m/s → km/h) */
+        let speed = (pos.coords.speed || 0) * 3.6;
+
+        /* MAPA */
+        if(!marker){
+            marker = L.marker([lat,lon],{
+                icon: carIcon
+            }).addTo(map);
+        }else{
+            marker.setLatLng([lat,lon]);
+        }
+
+        map.setView([lat, lon]);
+
+        /* SPEED */
+        setSpeed(speed);
+
+        /* UI */
+        document.getElementById("time").innerText =
+            new Date().toLocaleTimeString();
+
+        document.getElementById("alt").innerText =
+            "ALT " + Math.round(pos.coords.altitude || 0) + " m";
+
+        document.getElementById("avg").innerText =
+            "GPS ativo";
+
+        /* fallback debug */
+        console.log("Speed:", speed);
+
+    },
+
+    err => {
+        alert("GPS não disponível. Usando modo demo.");
+
+        /* fallback demo */
+        setInterval(()=>{
+            let fake = Math.abs(Math.sin(Date.now()/2000))*220;
+            setSpeed(fake);
+        },50);
+
+    },
+
+    {
+        enableHighAccuracy:true,
+        maximumAge:1000
+    });
+
+} else {
+    alert("Geolocation não suportado");
+}
+</script>
+
+
+</body>
+</html>
