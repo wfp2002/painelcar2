@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Dashboard</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
@@ -44,8 +44,8 @@ html, body{
     left:15%;
     top:50%;
     transform:translate(-50%,-50%);
-    width:420px;
-    height:420px;
+    width:320px;
+    height:320px;
 }
 
 svg{
@@ -98,25 +98,28 @@ svg{
 /* INFO */
 .info{
     position:absolute;
-    bottom:20px;
+    bottom:0px;
     width:100%;
     display:flex;
     justify-content:center;
     gap:60px;
-    color:#9ecbff;
+    color:#ddd;
     font-size:14px;
+    padding: 10px;
+    background-color: black;
     
 }
 
 .top{
     position:absolute;
-    top:15px;
+    top:0px;
     width:100%;
     display:flex;
     justify-content:space-around;
     color:#ddd;
     font-size:14px;
-    background-color: #1f2a37;
+    padding: 10px;
+    background-color: black;
 }
 
 </style>
