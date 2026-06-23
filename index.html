@@ -278,11 +278,12 @@ if ("geolocation" in navigator) {
         let lon = pos.coords.longitude;
 
 
-        let heading = pos.coords.heading || 0;
+        let heading = pos.coords.heading;
+        if (heading == null || isNaN(heading)) heading = 0;
 
-        if(map.setBearing){
-            map.setBearing(heading);
-        }
+         //if(map.setBearing){
+         //   map.setBearing(heading);
+       // }
 
 
         //if(map.setBearing){
@@ -306,16 +307,23 @@ if ("geolocation" in navigator) {
 
         const zoom = 18;
 
-        const offset = 0.00012 + (speed * 0.000002);
+        const point = map.project([lat, lon], zoom);
 
-        const rad = heading * Math.PI / 180;
+const offsetPixels = 60 + Math.min(speed * 1.5, 120);
+
+let smoothHeading = 0;
+smoothHeading += (heading - smoothHeading) * 0.2;
         
-        const offsetLat = lat - offset * Math.cos(rad);
-        const offsetLon = lon - offset * Math.sin(rad);
-        
-        map.setView([offsetLat, offsetLon], zoom, {
-            animate: false
-        });
+const angle = smoothHeading * Math.PI / 180;
+
+const newPoint = L.point(
+    point.x - Math.cos(angle) * offsetPixels,
+    point.y - Math.sin(angle) * offsetPixels
+);
+
+const newLatLng = map.unproject(newPoint, zoom);
+
+map.setView(newLatLng, zoom, { animate: false });
                 
 
         // deslocamento "pra trás" simulado
