@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -306,6 +306,18 @@ if ("geolocation" in navigator) {
 
         const zoom = 18;
 
+        const offset = 0.00012 + (speed * 0.000002);
+
+        const rad = heading * Math.PI / 180;
+        
+        const offsetLat = lat - offset * Math.cos(rad);
+        const offsetLon = lon - offset * Math.sin(rad);
+        
+        map.setView([offsetLat, offsetLon], zoom, {
+            animate: false
+        });
+                
+
         // deslocamento "pra trás" simulado
         ////const offset = 0.00012 + (speed * 0.000002);
 
@@ -313,10 +325,10 @@ if ("geolocation" in navigator) {
         ////const offsetLon = lon - offset * Math.sin((heading || 0) * Math.PI / 180);
 
 
-        map.setView([lat, lon], zoom, {
-            animate: true,
-            duration: 0.3
-        });
+        //map.setView([lat, lon], zoom, {
+        //    animate: true,
+        //    duration: 0.3
+        //});
 
        //// map.flyTo([offsetLat, offsetLon], zoom, {
         ////    animate: true,
