@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -41,7 +41,7 @@ html, body{
 /* SPEEDO */
 .speedo{
     position:absolute;
-    left:15%;
+    left:20%;
     top:50%;
     transform:translate(-50%,-50%);
     width:320px;
@@ -164,11 +164,17 @@ svg{
 
     </div>
 
+    <div class="info">
+    <div id="dist">0.00 km</div>
+    <div id="coords">0,0</div>
+    </div>
+
 </div>
 
 <script>
 
-let map = L.map('map').setView([-23.5505,-46.6333], 18);
+//let map = L.map('map').setView([-23.5505,-46.6333], 18);
+let map = L.map('map',{zoomControl:false}).setView([0,0],18);
 
 const carIcon = L.icon({
   iconUrl: 'car.png',
@@ -190,6 +196,9 @@ let smooth = 0;
 let marker = null;
 let lastLat = null;
 let lastLon = null;
+
+let speeds=[];
+
 
 /* ARC */
 function describeArc(cx, cy, r, startAngle, endAngle){
@@ -267,11 +276,17 @@ if ("geolocation" in navigator) {
         let lat = pos.coords.latitude;
         let lon = pos.coords.longitude;
 
+
         let heading = pos.coords.heading || 0;
 
         if(map.setBearing){
             map.setBearing(heading);
         }
+
+
+        //if(map.setBearing){
+        //    map.setBearing(heading);
+        //}
 
 
         /* velocidade real (m/s → km/h) */
@@ -286,7 +301,28 @@ if ("geolocation" in navigator) {
             marker.setLatLng([lat,lon]);
         }
 
-        map.setView([lat, lon]);
+        //map.setView([lat, lon]);
+
+        const zoom = 18;
+
+        // deslocamento "pra trás" simulado
+        const offset = 0.00012 + (speed * 0.000002);
+
+        const offsetLat = lat - offset * Math.cos((heading || 0) * Math.PI / 180);
+        const offsetLon = lon - offset * Math.sin((heading || 0) * Math.PI / 180);
+
+
+        //map.setView([offsetLat, offsetLon], zoom, {
+        //    animate: true,
+        //    duration: 0.3
+        //});
+
+        map.flyTo([offsetLat, offsetLon], zoom, {
+            animate: true,
+            duration: 0.3
+        });
+
+       
 
         /* SPEED */
         setSpeed(speed);
@@ -300,6 +336,17 @@ if ("geolocation" in navigator) {
 
         document.getElementById("avg").innerText =
             "GPS ativo";
+
+        document.getElementById("coords").innerText = lat.toFixed(5)+" | "+lon.toFixed(5);
+
+        /* AVG */
+        speeds.push(speed);
+        if(speeds.length>20) speeds.shift();
+
+        let avg=speeds.reduce((a,b)=>a+b,0)/speeds.length;
+        document.getElementById("avg")
+        .innerText="AVG "+avg.toFixed(0)+" km/h";
+
 
         /* fallback debug */
         console.log("Speed:", speed);
